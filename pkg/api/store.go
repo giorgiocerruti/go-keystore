@@ -2,7 +2,7 @@ package api
 
 import "errors"
 
-var store map[string]string
+var store = make(map[string]string)
 
 var ErrorNoSuchKey = errors.New("no such key")
 

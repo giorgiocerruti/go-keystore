@@ -1,7 +1,6 @@
 package server
 
 import (
-	gapi "github.com/giorgiocerruti/go-keystore/api"
 	"github.com/gorilla/mux"
 )
 
@@ -10,7 +9,8 @@ func NewRouter() *mux.Router {
 
 	//Register KeyValueHadler
 	//matching "/v1/{key}"
-	r.HandleFunc("/v1/{key}", gapi.KeyValuePutHandler).Method("PUT")
+	r.HandleFunc("/v1/{key}", KeyValuePutHandler).Methods("PUT")
+	r.HandleFunc("/v1/{key}", KeyValueGetHandler).Methods("GET")
 
 	return r
 }

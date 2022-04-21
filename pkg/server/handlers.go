@@ -6,7 +6,7 @@ import (
 	"io"
 	"net/http"
 
-	gapi "github.com/giorgiocerruti/go-keystore/pkg/api"
+	gapi "github.com/giorgiocerruti/go-keystore/pkg/api/v1"
 
 	"github.com/gorilla/mux"
 )

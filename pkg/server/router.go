@@ -11,6 +11,7 @@ func NewRouter() *mux.Router {
 	//matching "/v1/{key}"
 	r.HandleFunc("/v1/{key}", KeyValuePutHandler).Methods("PUT")
 	r.HandleFunc("/v1/{key}", KeyValueGetHandler).Methods("GET")
+	r.HandleFunc("/v1/{key}", KeyValueDeleteHandler).Methods("DELETE")
 
 	return r
 }

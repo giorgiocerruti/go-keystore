@@ -57,3 +57,17 @@ func KeyValueGetHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Write([]byte(value))
 }
+
+func KeyValueDeleteHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	key := vars["key"]
+
+	err := gapi.Delete(key)
+	if err != nil {
+		http.Error(w,
+			err.Error(),
+			http.StatusInternalServerError)
+	}
+
+	w.WriteHeader(http.StatusOK)
+}

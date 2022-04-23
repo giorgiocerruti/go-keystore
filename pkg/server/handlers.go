@@ -7,37 +7,41 @@ import (
 	"net/http"
 
 	gapi "github.com/giorgiocerruti/go-keystore/pkg/api/v1"
-
+	"github.com/giorgiocerruti/go-keystore/pkg/logger"
 	"github.com/gorilla/mux"
 )
 
-func KeyValuePutHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	key := vars["key"]
+func KeyValuePutHandler(logger logger.TransactionLogger) func(w http.ResponseWriter, r *http.Request) {
 
-	//Read the body as it's a Reader interface
-	value, err := io.ReadAll(r.Body)
-	defer r.Body.Close()
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		key := vars["key"]
 
-	if err != nil {
-		http.Error(w,
-			err.Error(),
-			http.StatusInternalServerError)
-		return
-	}
+		//Read the body as it's a Reader interface
+		value, err := io.ReadAll(r.Body)
+		defer r.Body.Close()
 
-	fmt.Println(string(value), key)
-	err = gapi.Put(key, string(value))
-	if err != nil {
-		http.Error(w,
-			err.Error(),
-			http.StatusInternalServerError)
-	}
+		if err != nil {
+			http.Error(w,
+				err.Error(),
+				http.StatusInternalServerError)
+			return
+		}
 
-	w.WriteHeader(http.StatusCreated)
+		fmt.Println(string(value), key)
+		err = gapi.Put(key, string(value))
+		if err != nil {
+			http.Error(w,
+				err.Error(),
+				http.StatusInternalServerError)
+		}
+		logger.WritePut(key, string(value))
+		w.WriteHeader(http.StatusCreated)
+	})
 }
 
 func KeyValueGetHandler(w http.ResponseWriter, r *http.Request) {
+
 	var statusCode int
 	vars := mux.Vars(r)
 	key := vars["key"]
@@ -58,16 +62,20 @@ func KeyValueGetHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(value))
 }
 
-func KeyValueDeleteHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	key := vars["key"]
+func KeyValueDeleteHandler(log logger.TransactionLogger) func(w http.ResponseWriter, r *http.Request) {
 
-	err := gapi.Delete(key)
-	if err != nil {
-		http.Error(w,
-			err.Error(),
-			http.StatusInternalServerError)
-	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		key := vars["key"]
 
-	w.WriteHeader(http.StatusOK)
+		err := gapi.Delete(key)
+		if err != nil {
+			http.Error(w,
+				err.Error(),
+				http.StatusInternalServerError)
+		}
+		log.WriteDelete(key)
+		w.WriteHeader(http.StatusOK)
+	})
+
 }

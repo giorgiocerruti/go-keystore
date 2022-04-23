@@ -43,12 +43,12 @@ func Delete(key string) error {
 	return nil
 }
 
-func InitializeTransdactionLogger() error {
+func InitializeTransdactionLogger() (logger.TransactionLogger, error) {
 	var err error
 
-	log, err = logger.NewFileTransactionLogger("transactions.log")
+	log, err = logger.NewFileTransactionLogger(logger.FILENAME)
 	if err != nil {
-		return fmt.Errorf("failed to create event logger: %w", err)
+		return nil, fmt.Errorf("failed to create event logger: %w", err)
 	}
 
 	events, errors := log.ReadEvents()
@@ -69,6 +69,6 @@ func InitializeTransdactionLogger() error {
 
 	log.Run()
 
-	return err
+	return log, err
 
 }

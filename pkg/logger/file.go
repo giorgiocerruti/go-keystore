@@ -3,8 +3,11 @@ package logger
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 )
+
+const FILENAME = "transactions.log"
 
 type FileTransactionLogger struct {
 	events       chan<- Event //Write-only channell for sending events
@@ -76,7 +79,9 @@ func (l *FileTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 
 			if _, err := fmt.Sscanf(line, "%d\t%d\t%s\t%s",
 				&e.Sequence, &e.EventType, &e.Key, &e.Value); err != nil {
-				outError <- fmt.Errorf("input parse error %w", err)
+				if err != io.EOF {
+					outError <- fmt.Errorf("input parse error %w", err)
+				}
 			}
 
 			//check the sequernce integrity

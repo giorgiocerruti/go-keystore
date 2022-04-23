@@ -2,7 +2,10 @@ package v1
 
 import (
 	"errors"
+	"fmt"
 	"sync"
+
+	"github.com/giorgiocerruti/go-keystore/pkg/logger"
 )
 
 var store = struct {
@@ -11,6 +14,7 @@ var store = struct {
 }{m: make(map[string]string)}
 
 var ErrorNoSuchKey = errors.New("no such key")
+var log logger.TransactionLogger
 
 func Put(key, value string) error {
 	store.Lock()
@@ -37,4 +41,34 @@ func Delete(key string) error {
 	store.Unlock()
 
 	return nil
+}
+
+func InitializeTransdactionLogger() error {
+	var err error
+
+	log, err = logger.NewFileTransactionLogger("transactions.log")
+	if err != nil {
+		return fmt.Errorf("failed to create event logger: %w", err)
+	}
+
+	events, errors := log.ReadEvents()
+	e, ok := logger.Event{}, true
+
+	for ok && err == nil {
+		select {
+		case err, ok = <-errors:
+		case e, ok = <-events:
+			switch e.EventType {
+			case logger.EventDelete:
+				err = Delete(e.Key)
+			case logger.EventPut:
+				err = Put(e.Key, e.Value)
+			}
+		}
+	}
+
+	log.Run()
+
+	return err
+
 }

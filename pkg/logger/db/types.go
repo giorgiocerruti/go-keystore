@@ -1,9 +1,9 @@
 package db
 
 type PostgresDBParams struct {
-	dbName    string
-	host      string
-	user      string
-	password  string
-	tableName string
+	DbName    string
+	Host      string
+	User      string
+	Password  string
+	TableName string
 }

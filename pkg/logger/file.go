@@ -9,7 +9,7 @@ import (
 
 const FILENAME = "transactions.log"
 
-type PostgresTransactionLogger struct {
+type FileTransactionLogger struct {
 	events       chan<- Event //Write-only channell for sending events
 	errors       <-chan error //Read-only channel for errors
 	lastSequence uint64       //The last used event sequence
@@ -17,23 +17,23 @@ type PostgresTransactionLogger struct {
 }
 
 //Logs the PUT request
-func (l *PostgresTransactionLogger) WritePut(key, value string) {
+func (l *FileTransactionLogger) WritePut(key, value string) {
 	l.events <- Event{EventType: EventPut, Key: key, Value: value}
 }
 
 //Logs the DELETE request
-func (l *PostgresTransactionLogger) WriteDelete(key string) {
+func (l *FileTransactionLogger) WriteDelete(key string) {
 	l.events <- Event{EventType: EventDelete, Key: key}
 }
 
 //Return a channel of errors
-func (l *PostgresTransactionLogger) Err() <-chan error {
+func (l *FileTransactionLogger) Err() <-chan error {
 	return l.errors
 }
 
 //creates a gorutine that read events from a channel and
 // write them onto a file
-func (l *PostgresTransactionLogger) Run() {
+func (l *FileTransactionLogger) Run() {
 	//event channel
 	events := make(chan Event, 16)
 	l.events = events
@@ -63,7 +63,7 @@ func (l *PostgresTransactionLogger) Run() {
 
 }
 
-func (l *PostgresTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
+func (l *FileTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 	scanner := bufio.NewScanner(l.file)
 	outEvent := make(chan Event)
 	outError := make(chan error)
@@ -101,11 +101,11 @@ func (l *PostgresTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 }
 
 //Constructor
-func NewPostgresTransactionLogger(filename string) (TransactionLogger, error) {
+func NewFileTransactionLogger(filename string) (TransactionLogger, error) {
 	file, err := os.OpenFile(filename, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0755)
 	if err != nil {
 		return nil, fmt.Errorf("cannot otpen transactionasl log file %w", err)
 	}
 
-	return &PostgresTransactionLogger{file: file}, nil
+	return &FileTransactionLogger{file: file}, nil
 }

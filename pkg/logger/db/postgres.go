@@ -18,6 +18,7 @@ type PostgresTransactionLogger struct {
 
 //Logs the PUT request
 func (l *PostgresTransactionLogger) WritePut(key, value string) {
+	fmt.Println("PMOdule:", key, value)
 	l.events <- logger.Event{EventType: logger.EventPut, Key: key, Value: value}
 }
 
@@ -38,11 +39,11 @@ func (l *PostgresTransactionLogger) VerifyTableExists() (bool, error) {
 		    pg_tables
 		WHERE 
 		    schemaname = 'public' AND 
-		    tablename  = '?'
+		    tablename  = '$1'
 		);`
-	result, err := l.db.Exec(q, l.dbConf.tableName)
+	result, err := l.db.Exec(q, l.dbConf.TableName)
 	if err != nil {
-		return false, fmt.Errorf("error checking table exists")
+		return false, fmt.Errorf("error checking table exists: %w", err)
 	}
 
 	rows, err := result.RowsAffected()
@@ -59,25 +60,21 @@ func (l *PostgresTransactionLogger) VerifyTableExists() (bool, error) {
 
 //create a table
 func (l *PostgresTransactionLogger) CreateTable() error {
-	q := `CREATE TABLE ? (
+	q := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (
 		sequence serial PRIMARY KEY,
 		eventType INT NOT NULL,
 		key VARCHAR(255) NOT NULL,
 		value VARCHAR(255)
-		);`
+		);`, l.dbConf.TableName)
 
-	result, err := l.db.Exec(q, l.dbConf.tableName)
+	result, err := l.db.Exec(q)
 	if err != nil {
-		return fmt.Errorf("error checking table exists")
+		return fmt.Errorf("error creating the table: %w", err)
 	}
 
-	rows, err := result.RowsAffected()
+	_, err = result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("errors retrieving affected rows: %w", err)
-	}
-
-	if rows != 1 {
-		return fmt.Errorf("table has not created")
 	}
 
 	return nil
@@ -86,14 +83,14 @@ func (l *PostgresTransactionLogger) CreateTable() error {
 func (l *PostgresTransactionLogger) ReadEvents() (<-chan logger.Event, <-chan error) {
 	outEvent := make(chan logger.Event)
 	outError := make(chan error)
-	q := `SELECT sequende, event_type, key. value FROM ? ORDER BY sequence`
+	q := fmt.Sprintf("SELECT sequence, eventType, key, value FROM %s ORDER BY sequence", l.dbConf.TableName)
 
 	go func() {
 
 		defer close(outEvent)
 		defer close(outError)
 
-		rows, err := l.db.Query(q, l.dbConf.tableName)
+		rows, err := l.db.Query(q)
 		if err != nil {
 			outError <- fmt.Errorf("sql query error: %w", err)
 			return
@@ -101,8 +98,8 @@ func (l *PostgresTransactionLogger) ReadEvents() (<-chan logger.Event, <-chan er
 
 		defer rows.Close()
 		e := logger.Event{}
-
 		for rows.Next() {
+
 			err = rows.Scan(
 				&e.Sequence,
 				&e.EventType,
@@ -136,22 +133,25 @@ func (l *PostgresTransactionLogger) Run() {
 	l.errors = errors
 
 	go func() {
-		q := `INSERT INTO $1 (event_type, key, value) VALUES ($2, $3, $4)`
+		var q string
 
 		for e := range events {
-			_, err := l.db.Exec(q, l.dbConf.tableName, e.EventType, e.Key, e.Value)
+			q = fmt.Sprintf(`INSERT INTO %s (eventType, key, value) VALUES (%d, %s, "%s")`, l.dbConf.TableName, e.EventType, e.Key, e.Value)
+			fmt.Println(q)
+			_, err := l.db.Exec(q)
 			if err != nil {
 				errors <- err
 			}
 		}
 	}()
 }
+
 func NewPostgresTransactionLogger(conf PostgresDBParams) (logger.TransactionLogger, error) {
 
 	//Create connection string
-	connString := fmt.Sprintf("host=%s dbName=%s user=%s password=%s",
-		conf.host, conf.dbName, conf.user, conf.password)
-
+	connString := fmt.Sprintf("host=%s dbname=%s user=%s password=%s sslmode=disable",
+		conf.Host, conf.DbName, conf.User, conf.Password)
+	fmt.Println(connString)
 	//Open connections
 	db, err := sql.Open("postgres", connString)
 	if err != nil {
@@ -165,20 +165,11 @@ func NewPostgresTransactionLogger(conf PostgresDBParams) (logger.TransactionLogg
 		return nil, fmt.Errorf("failed to open db connection: %w", err)
 	}
 
-	log := &PostgresTransactionLogger{db: db}
+	log := &PostgresTransactionLogger{db: db, dbConf: conf}
 
-	//Check if the db exists
-	exists, err := log.VerifyTableExists()
-	if err != nil {
-		return nil, fmt.Errorf("failde to verify table exists: %w", err)
+	if err = log.CreateTable(); err != nil {
+		return nil, fmt.Errorf("failde to create table: %w", err)
 	}
-
-	if !exists {
-		//create the table is doesn't exist
-		if err = log.CreateTable(); err != nil {
-			return nil, fmt.Errorf("failde to create table: %w", err)
-		}
-	}
-
+	fmt.Println("here:", log)
 	return log, err
 }

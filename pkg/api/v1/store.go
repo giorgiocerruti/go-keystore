@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/giorgiocerruti/go-keystore/pkg/logger"
+	logger "github.com/giorgiocerruti/go-keystore/pkg/logger"
+	loggerDB "github.com/giorgiocerruti/go-keystore/pkg/logger/db"
 )
 
 var store = struct {
@@ -46,7 +47,14 @@ func Delete(key string) error {
 func InitializeTransdactionLogger() (logger.TransactionLogger, error) {
 	var err error
 
-	log, err = logger.NewPostgresTransactionLogger(logger.FILENAME)
+	log, err = loggerDB.NewPostgresTransactionLogger(loggerDB.PostgresDBParams{
+		DbName:    "transaction",
+		Host:      "localhost",
+		User:      "postgres",
+		Password:  "password",
+		TableName: "transactions",
+	})
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to create event logger: %w", err)
 	}

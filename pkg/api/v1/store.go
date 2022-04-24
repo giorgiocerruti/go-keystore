@@ -46,7 +46,7 @@ func Delete(key string) error {
 func InitializeTransdactionLogger() (logger.TransactionLogger, error) {
 	var err error
 
-	log, err = logger.NewFileTransactionLogger(logger.FILENAME)
+	log, err = logger.NewPostgresTransactionLogger(logger.FILENAME)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create event logger: %w", err)
 	}

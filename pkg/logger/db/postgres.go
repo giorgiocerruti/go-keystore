@@ -18,7 +18,6 @@ type PostgresTransactionLogger struct {
 
 //Logs the PUT request
 func (l *PostgresTransactionLogger) WritePut(key, value string) {
-	fmt.Println("PMOdule:", key, value)
 	l.events <- logger.Event{EventType: logger.EventPut, Key: key, Value: value}
 }
 
@@ -30,32 +29,6 @@ func (l *PostgresTransactionLogger) WriteDelete(key string) {
 //Return a channel of errors
 func (l *PostgresTransactionLogger) Err() <-chan error {
 	return l.errors
-}
-
-//Verify if the table exists
-func (l *PostgresTransactionLogger) VerifyTableExists() (bool, error) {
-	q := `SELECT EXISTS (
-		SELECT FROM 
-		    pg_tables
-		WHERE 
-		    schemaname = 'public' AND 
-		    tablename  = '$1'
-		);`
-	result, err := l.db.Exec(q, l.dbConf.TableName)
-	if err != nil {
-		return false, fmt.Errorf("error checking table exists: %w", err)
-	}
-
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return false, fmt.Errorf("errors retrieving affected rows: %w", err)
-	}
-
-	if rows != 1 {
-		return false, nil
-	}
-
-	return true, nil
 }
 
 //create a table
@@ -136,11 +109,22 @@ func (l *PostgresTransactionLogger) Run() {
 		var q string
 
 		for e := range events {
-			q = fmt.Sprintf(`INSERT INTO %s (eventType, key, value) VALUES (%d, %s, "%s")`, l.dbConf.TableName, e.EventType, e.Key, e.Value)
+			q = fmt.Sprintf(`INSERT INTO %s (eventType, key, value) VALUES (%d, '%s', '%s')`, l.dbConf.TableName, e.EventType, e.Key, e.Value)
 			fmt.Println(q)
-			_, err := l.db.Exec(q)
+			rows, err := l.db.Exec(q)
 			if err != nil {
 				errors <- err
+				return
+			}
+
+			result, err := rows.RowsAffected()
+			if err != nil {
+				errors <- fmt.Errorf("error insert: %w", err)
+				return
+			}
+
+			if result != 1 {
+				errors <- fmt.Errorf("no rows affected")
 			}
 		}
 	}()
@@ -151,7 +135,7 @@ func NewPostgresTransactionLogger(conf PostgresDBParams) (logger.TransactionLogg
 	//Create connection string
 	connString := fmt.Sprintf("host=%s dbname=%s user=%s password=%s sslmode=disable",
 		conf.Host, conf.DbName, conf.User, conf.Password)
-	fmt.Println(connString)
+
 	//Open connections
 	db, err := sql.Open("postgres", connString)
 	if err != nil {
@@ -170,6 +154,6 @@ func NewPostgresTransactionLogger(conf PostgresDBParams) (logger.TransactionLogg
 	if err = log.CreateTable(); err != nil {
 		return nil, fmt.Errorf("failde to create table: %w", err)
 	}
-	fmt.Println("here:", log)
+
 	return log, err
 }

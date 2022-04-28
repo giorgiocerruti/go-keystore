@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 
@@ -15,6 +16,7 @@ type RestFrontend struct {
 func (f *RestFrontend) Start(store *core.KeyValueStore) error {
 	r := mux.NewRouter()
 	f.store = store
+	addr := os.Getenv("TLOG_REST_ADDR")
 
 	//Register KeyValueHadler
 	//matching "/v1/{key}"
@@ -22,7 +24,8 @@ func (f *RestFrontend) Start(store *core.KeyValueStore) error {
 	r.HandleFunc("/v1/{key}", f.KeyValueGetHandler).Methods("GET")
 	r.HandleFunc("/v1/{key}", f.KeyValueDeleteHandler).Methods("DELETE")
 
-	return http.ListenAndServe(os.Getenv("TLOG_REST_ADDR"), r)
+	fmt.Printf("Listening on port %s", addr)
+	return http.ListenAndServe(addr, r)
 }
 
 func NewRestFrontend() *RestFrontend {

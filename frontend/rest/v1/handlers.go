@@ -10,7 +10,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func (f *restDFrontend) KeyValuePutHandler(w http.ResponseWriter, r *http.Request) {
+func (f *RestFrontend) KeyValuePutHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	key := vars["key"]
@@ -37,7 +37,7 @@ func (f *restDFrontend) KeyValuePutHandler(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusCreated)
 }
 
-func (f *restDFrontend) KeyValueGetHandler(w http.ResponseWriter, r *http.Request) {
+func (f *RestFrontend) KeyValueGetHandler(w http.ResponseWriter, r *http.Request) {
 
 	var statusCode int
 	vars := mux.Vars(r)
@@ -59,7 +59,7 @@ func (f *restDFrontend) KeyValueGetHandler(w http.ResponseWriter, r *http.Reques
 	w.Write([]byte(value))
 }
 
-func (f *restDFrontend) KeyValueDeleteHandler(w http.ResponseWriter, r *http.Request) {
+func (f *RestFrontend) KeyValueDeleteHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	key := vars["key"]

@@ -1,27 +1,34 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"net/http"
+	"os"
 
-	store "github.com/giorgiocerruti/go-keystore/pkg/api/v1"
-	"github.com/giorgiocerruti/go-keystore/pkg/server"
+	"github.com/giorgiocerruti/go-keystore/core"
+	"github.com/giorgiocerruti/go-keystore/frontend"
+	"github.com/giorgiocerruti/go-keystore/transact"
 )
 
-const LISTEN_ADDRESS = ":8080"
-
 func main() {
-	fmt.Println("Intializing...")
-
-	tLogger, err := store.InitializeTransdactionLogger()
+	//Create our TransactionLogger
+	tl, err := transact.NewTransactionLogger(os.Getenv("TLOG_TYPE"))
 	if err != nil {
-		fmt.Printf("error initializing the storage: %s", err)
+		log.Fatal(err)
 	}
 
-	r := server.NewRouter(tLogger)
-	fmt.Printf("Server listening %s", LISTEN_ADDRESS)
+	//Creare the core and tell it wich TL to use
+	store := core.NewKeyValueStore(tl)
+	err = store.Restore()
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	log.Fatal(http.ListenAndServe(LISTEN_ADDRESS, r))
+	//Create the frontend
+	fe, err := frontend.NewFrontEnd(os.Getenv("TLOG_FRONTEND"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Fatal(fe.Start(store))
 
 }

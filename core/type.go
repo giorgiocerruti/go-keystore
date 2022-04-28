@@ -35,6 +35,29 @@ func (store *KeyValueStore) Put(key, value string) error {
 	return nil
 }
 
+func (store *KeyValueStore) Restore() error {
+	var err error
+	events, errors := store.transact.Read()
+	e, ok := Event{}, true
+
+	for ok && err == nil {
+		select {
+		case err, ok = <-errors:
+		case e, ok = <-events:
+			switch e.EventType {
+			case EventDelete:
+				err = store.Delete(e.Key)
+			case EventPut:
+				err = store.Put(e.Key, e.Value)
+			}
+		}
+	}
+
+	store.transact.Run()
+
+	return err
+}
+
 type EventType int
 
 //Used to send events throught channels

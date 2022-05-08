@@ -1,29 +1,31 @@
-package logger
+package transact
 
 import (
 	"bufio"
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/giorgiocerruti/go-keystore/core"
 )
 
 const FILENAME = "transactions.log"
 
 type FileTransactionLogger struct {
-	events       chan<- Event //Write-only channell for sending events
-	errors       <-chan error //Read-only channel for errors
-	lastSequence uint64       //The last used event sequence
-	file         *os.File     //file location
+	events       chan<- core.Event //Write-only channell for sending events
+	errors       <-chan error      //Read-only channel for errors
+	lastSequence uint64            //The last used event sequence
+	file         *os.File          //file location
 }
 
 //Logs the PUT request
 func (l *FileTransactionLogger) WritePut(key, value string) {
-	l.events <- Event{EventType: EventPut, Key: key, Value: value}
+	l.events <- core.Event{EventType: core.EventPut, Key: key, Value: value}
 }
 
 //Logs the DELETE request
 func (l *FileTransactionLogger) WriteDelete(key string) {
-	l.events <- Event{EventType: EventDelete, Key: key}
+	l.events <- core.Event{EventType: core.EventDelete, Key: key}
 }
 
 //Return a channel of errors
@@ -35,7 +37,7 @@ func (l *FileTransactionLogger) Err() <-chan error {
 // write them onto a file
 func (l *FileTransactionLogger) Run() {
 	//event channel
-	events := make(chan Event, 16)
+	events := make(chan core.Event, 16)
 	l.events = events
 
 	//error channel
@@ -63,13 +65,13 @@ func (l *FileTransactionLogger) Run() {
 
 }
 
-func (l *FileTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
+func (l *FileTransactionLogger) Read() (<-chan core.Event, <-chan error) {
 	scanner := bufio.NewScanner(l.file)
-	outEvent := make(chan Event)
+	outEvent := make(chan core.Event)
 	outError := make(chan error)
 
 	go func() {
-		var e Event
+		var e core.Event
 
 		defer close(outEvent)
 		defer close(outError)
@@ -101,7 +103,7 @@ func (l *FileTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 }
 
 //Constructor
-func NewFileTransactionLogger(filename string) (TransactionLogger, error) {
+func NewFileTransactionLogger(filename string) (core.TransactionLogger, error) {
 	file, err := os.OpenFile(filename, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0755)
 	if err != nil {
 		return nil, fmt.Errorf("cannot otpen transactionasl log file %w", err)

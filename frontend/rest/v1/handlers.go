@@ -6,7 +6,7 @@ import (
 	"io"
 	"net/http"
 
-	gapi "github.com/giorgiocerruti/go-keystore/pkg/api/v1"
+	"github.com/giorgiocerruti/go-keystore/core"
 	"github.com/gorilla/mux"
 )
 
@@ -27,7 +27,7 @@ func (f *RestFrontend) KeyValuePutHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	fmt.Println(string(value), key)
-	err = gapi.Put(key, string(value))
+	err = f.store.Put(key, string(value))
 	if err != nil {
 		http.Error(w,
 			err.Error(),
@@ -43,9 +43,9 @@ func (f *RestFrontend) KeyValueGetHandler(w http.ResponseWriter, r *http.Request
 	vars := mux.Vars(r)
 	key := vars["key"]
 
-	value, err := gapi.Get(key)
+	value, err := f.store.Get(key)
 	if err != nil {
-		if errors.Is(err, gapi.ErrorNoSuchKey) {
+		if errors.Is(err, core.ErrorNoSuchKey) {
 			statusCode = http.StatusNotFound
 		} else {
 			statusCode = http.StatusInternalServerError
@@ -64,7 +64,7 @@ func (f *RestFrontend) KeyValueDeleteHandler(w http.ResponseWriter, r *http.Requ
 	vars := mux.Vars(r)
 	key := vars["key"]
 
-	err := gapi.Delete(key)
+	err := f.store.Delete(key)
 	if err != nil {
 		http.Error(w,
 			err.Error(),

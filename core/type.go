@@ -1,12 +1,14 @@
 package core
 
+import "errors"
+
 const (
 	_                     = iota
 	EventDelete EventType = iota
 	EventPut
 )
 
-// The interface that defines the transaction logger
+// The interface that defines the transaction core
 type TransactionLogger interface {
 	WriteDelete(key string)
 	WritePut(key, value string)
@@ -20,6 +22,17 @@ type TransactionLogger interface {
 type KeyValueStore struct {
 	m        map[string]string
 	transact TransactionLogger //This is the port, the constructor accepts the adapter of type TransactionLogger
+}
+
+var ErrorNoSuchKey = errors.New("no suck key")
+
+func (store *KeyValueStore) Get(key string) (string, error) {
+	value, ok := store.m[key]
+	if !ok {
+		return "", ErrorNoSuchKey
+	}
+
+	return value, nil
 }
 
 func (store *KeyValueStore) Delete(key string) error {

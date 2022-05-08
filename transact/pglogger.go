@@ -4,20 +4,21 @@ import (
 	"database/sql"
 	"fmt"
 
+	_ "github.com/lib/pq"
+
 	"github.com/giorgiocerruti/go-keystore/core"
-	"github.com/giorgiocerruti/go-keystore/pkg/logger"
 )
 
 type PostgresDBParams struct {
-	dbName    string
-	host      string
-	user      string
-	password  string
-	tableName string
+	DbName    string
+	Host      string
+	User      string
+	Password  string
+	TableName string
 }
 
 type PostgresTransactionLogger struct {
-	events chan<- logger.Event
+	events chan<- core.Event
 	errors <-chan error
 	db     *sql.DB
 	dbConf PostgresDBParams
@@ -25,12 +26,12 @@ type PostgresTransactionLogger struct {
 
 //Logs the PUT request
 func (l *PostgresTransactionLogger) WritePut(key, value string) {
-	l.events <- logger.Event{EventType: logger.EventPut, Key: key, Value: value}
+	l.events <- core.Event{EventType: core.EventPut, Key: key, Value: value}
 }
 
 //Logs the DELETE request
 func (l *PostgresTransactionLogger) WriteDelete(key string) {
-	l.events <- logger.Event{EventType: logger.EventDelete, Key: key}
+	l.events <- core.Event{EventType: core.EventDelete, Key: key}
 }
 
 //Return a channel of errors
@@ -45,7 +46,7 @@ func (l *PostgresTransactionLogger) CreateTable() error {
 		eventType INT NOT NULL,
 		key VARCHAR(255) NOT NULL,
 		value VARCHAR(255)
-		);`, l.dbConf.tableName)
+		);`, l.dbConf.TableName)
 
 	result, err := l.db.Exec(q)
 	if err != nil {
@@ -63,7 +64,7 @@ func (l *PostgresTransactionLogger) CreateTable() error {
 func (l *PostgresTransactionLogger) Read() (<-chan core.Event, <-chan error) {
 	outEvent := make(chan core.Event)
 	outError := make(chan error)
-	q := fmt.Sprintf("SELECT sequence, eventType, key, value FROM %s ORDER BY sequence", l.dbConf.tableName)
+	q := fmt.Sprintf("SELECT sequence, eventType, key, value FROM %s ORDER BY sequence", l.dbConf.TableName)
 
 	go func() {
 
@@ -106,7 +107,7 @@ func (l *PostgresTransactionLogger) Read() (<-chan core.Event, <-chan error) {
 
 //Run the gorutinr for insert items into the DB
 func (l *PostgresTransactionLogger) Run() {
-	events := make(chan logger.Event, 16)
+	events := make(chan core.Event, 16)
 	l.events = events
 
 	errors := make(chan error, 1)
@@ -116,7 +117,7 @@ func (l *PostgresTransactionLogger) Run() {
 		var q string
 
 		for e := range events {
-			q = fmt.Sprintf(`INSERT INTO %s (eventType, key, value) VALUES (%d, '%s', '%s')`, l.dbConf.tableName, e.EventType, e.Key, e.Value)
+			q = fmt.Sprintf(`INSERT INTO %s (eventType, key, value) VALUES (%d, '%s', '%s')`, l.dbConf.TableName, e.EventType, e.Key, e.Value)
 			fmt.Println(q)
 			rows, err := l.db.Exec(q)
 			if err != nil {
@@ -141,7 +142,7 @@ func NewPostgresTransactionLogger(conf PostgresDBParams) (core.TransactionLogger
 
 	//Create connection string
 	connString := fmt.Sprintf("host=%s dbname=%s user=%s password=%s sslmode=disable",
-		conf.host, conf.dbName, conf.user, conf.password)
+		conf.Host, conf.DbName, conf.User, conf.Password)
 
 	//Open connections
 	db, err := sql.Open("postgres", connString)
